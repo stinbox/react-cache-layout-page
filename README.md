@@ -1,34 +1,34 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+## 検証したこと
 
-## Getting Started
+次のディレクトリ構造のとき、
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+```
+src/app
+├── layout.tsx
+├── page.tsx
+└── page2
+    └── page.tsx
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`app/layout.tsx`, `app/page.tsx`, `app/page2/page.tsx` が同じ `react/cache` 適用済み非同期関数を呼んでいるとする。 `/` と `/page2` を `next/link` で行き来したらどんな挙動になるのか確認したかった。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+なお、すべて SSR(dynamic rendering) とする。
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+## 検証理由
 
-## Learn More
+`react/cache` はコンポーネントツリーで同じ結果を表示するために計算結果をキャッシュするための高階関数。ではページをまたいでも値が使い回されるのか疑問に思った。
 
-To learn more about Next.js, take a look at the following resources:
+## 検証方法
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+現在時刻を非同期に取得する `react/cache` 適用済み関数を 1 つ用意して、それを `app/layout.tsx`, `app/page.tsx`, `app/page2/page.tsx` が呼ぶようにした。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+## 予想
 
-## Deploy on Vercel
+`/` で `app/layout.tsx` と `app/page.tsx` で同じ値が表示される。また、そこから `/page2` に遷移したら `app/layout.tsx` の値は変化せず、`app/page2/page.tsx` の値は `app/layout.tsx` と同じ値が表示される(`react/cache` でキャッシュされた値が再利用される)。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 結果
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+`/` では `app/layout.tsx` と `app/page.tsx` で同じ値が表示された。
+しかしそこから `/page2` に遷移すると、`app/layout.tsx` の値は変化せず、`app/page2/page.tsx` の値は新たに計算された結果が表示された(`react/cache` でキャッシュされた値は再利用されなかった)。
+
+ついでに、`/page2` から `/` に再度遷移してもクライアントサイドにキャッシュされているため、`app/layout.tsx` と同じ値が `app/page.tsx` に表示された。
